@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 """Tests for course home page date summary blocks."""
 
 
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import crum
 import ddt
@@ -11,12 +11,12 @@ from django.contrib.messages.middleware import MessageMiddleware
 from django.test import RequestFactory
 from django.urls import reverse
 from edx_toggles.toggles.testutils import override_waffle_flag
-from mock import patch
+from freezegun import freeze_time
 from pytz import utc
 
 from common.djangoapps.course_modes.models import CourseMode
 from common.djangoapps.course_modes.tests.factories import CourseModeFactory
-from freezegun import freeze_time  # lint-amnesty, pylint: disable=wrong-import-order
+from common.djangoapps.student.tests.factories import TEST_PASSWORD, CourseEnrollmentFactory, UserFactory
 from lms.djangoapps.commerce.models import CommerceConfiguration
 from lms.djangoapps.course_home_api.toggles import COURSE_HOME_MICROFRONTEND, COURSE_HOME_MICROFRONTEND_DATES_TAB
 from lms.djangoapps.courseware.courses import get_course_date_blocks
@@ -51,7 +51,6 @@ from openedx.features.course_experience import (
     UPGRADE_DEADLINE_MESSAGE,
     CourseHomeMessages
 )
-from common.djangoapps.student.tests.factories import TEST_PASSWORD, CourseEnrollmentFactory, UserFactory
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.tests.django_utils import TEST_DATA_SPLIT_MODULESTORE, SharedModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
@@ -63,7 +62,7 @@ class CourseDateSummaryTest(SharedModuleStoreTestCase):
     MODULESTORE = TEST_DATA_SPLIT_MODULESTORE
 
     def setUp(self):
-        super(CourseDateSummaryTest, self).setUp()  # lint-amnesty, pylint: disable=super-with-arguments
+        super().setUp()
         SelfPacedConfiguration.objects.create(enable_course_home_improvements=True)
 
     def make_request(self, user):
@@ -243,7 +242,10 @@ class CourseDateSummaryTest(SharedModuleStoreTestCase):
         blocks = get_course_date_blocks(course, user, request, num_assignments=2)
         assert len(blocks) == len(expected_blocks)
         assert set((type(b) for b in blocks)) == set(expected_blocks)
-        assignment_blocks = filter(lambda b: isinstance(b, CourseAssignmentDate), blocks)
+        assignment_blocks = filter(  # lint-amnesty, pylint:disable=filter-builtin-not-iterating
+            lambda b: isinstance(b, CourseAssignmentDate),
+            blocks
+        )
         for assignment in assignment_blocks:
             assignment_title = str(assignment.title_html) or str(assignment.title)
             assert assignment_title != 'Third nearest assignment'
@@ -267,7 +269,10 @@ class CourseDateSummaryTest(SharedModuleStoreTestCase):
         blocks = get_course_date_blocks(course, user, request, include_past_dates=True)
         assert len(blocks) == len(expected_blocks)
         assert set((type(b) for b in blocks)) == set(expected_blocks)
-        assignment_blocks = filter(lambda b: isinstance(b, CourseAssignmentDate), blocks)
+        assignment_blocks = filter(  # lint-amnesty, pylint:disable=filter-builtin-not-iterating
+            lambda b: isinstance(b, CourseAssignmentDate),
+            blocks
+        )
         for assignment in assignment_blocks:
             assignment_title = str(assignment.title_html) or str(assignment.title)
             assert assignment_title != 'Not returned since we do not get non-graded subsections'
@@ -703,8 +708,8 @@ class CourseDateSummaryTest(SharedModuleStoreTestCase):
             assert block.link == ''
 
     @ddt.data(
-        (-1, u'1 day ago - {date}'),
-        (1, u'in 1 day - {date}')
+        (-1, '1 day ago - {date}'),
+        (1, 'in 1 day - {date}')
     )
     @ddt.unpack
     def test_render_date_string_past(self, delta, expected_date_string):
@@ -771,7 +776,7 @@ class TestDateAlerts(SharedModuleStoreTestCase):
     Unit tests for date alerts.
     """
     def setUp(self):
-        super(TestDateAlerts, self).setUp()  # lint-amnesty, pylint: disable=super-with-arguments
+        super().setUp()
         with freeze_time('2017-07-01 09:00:00'):
             self.course = create_course_run(days_till_start=0)
             self.course.certificate_available_date = self.course.start + timedelta(days=21)
@@ -783,11 +788,11 @@ class TestDateAlerts(SharedModuleStoreTestCase):
             MessageMiddleware().process_request(self.request)
 
     @ddt.data(
-        ['2017-01-01 09:00:00', u'in 6 months on <span class="date localized-datetime" data-format="shortDate"'],
-        ['2017-06-17 09:00:00', u'in 2 weeks on <span class="date localized-datetime" data-format="shortDate"'],
-        ['2017-06-30 10:00:00', u'in 1 day at <span class="date localized-datetime" data-format="shortTime"'],
-        ['2017-07-01 08:00:00', u'in 1 hour at <span class="date localized-datetime" data-format="shortTime"'],
-        ['2017-07-01 08:55:00', u'in 5 minutes at <span class="date localized-datetime" data-format="shortTime"'],
+        ['2017-01-01 09:00:00', 'in 6 months on <span class="date localized-datetime" data-format="shortDate"'],
+        ['2017-06-17 09:00:00', 'in 2 weeks on <span class="date localized-datetime" data-format="shortDate"'],
+        ['2017-06-30 10:00:00', 'in 1 day at <span class="date localized-datetime" data-format="shortTime"'],
+        ['2017-07-01 08:00:00', 'in 1 hour at <span class="date localized-datetime" data-format="shortTime"'],
+        ['2017-07-01 08:55:00', 'in 5 minutes at <span class="date localized-datetime" data-format="shortTime"'],
         ['2017-07-01 09:00:00', None],
         ['2017-08-01 09:00:00', None],
     )
@@ -808,10 +813,10 @@ class TestDateAlerts(SharedModuleStoreTestCase):
 
     @ddt.data(
         ['2017-06-30 09:00:00', None],
-        ['2017-07-01 09:00:00', u'in 2 weeks on <span class="date localized-datetime" data-format="shortDate"'],
-        ['2017-07-14 10:00:00', u'in 1 day at <span class="date localized-datetime" data-format="shortTime"'],
-        ['2017-07-15 08:00:00', u'in 1 hour at <span class="date localized-datetime" data-format="shortTime"'],
-        ['2017-07-15 08:55:00', u'in 5 minutes at <span class="date localized-datetime" data-format="shortTime"'],
+        ['2017-07-01 09:00:00', 'in 2 weeks on <span class="date localized-datetime" data-format="shortDate"'],
+        ['2017-07-14 10:00:00', 'in 1 day at <span class="date localized-datetime" data-format="shortTime"'],
+        ['2017-07-15 08:00:00', 'in 1 hour at <span class="date localized-datetime" data-format="shortTime"'],
+        ['2017-07-15 08:55:00', 'in 5 minutes at <span class="date localized-datetime" data-format="shortTime"'],
         ['2017-07-15 09:00:00', None],
         ['2017-08-15 09:00:00', None],
     )
@@ -832,10 +837,10 @@ class TestDateAlerts(SharedModuleStoreTestCase):
 
     @ddt.data(
         ['2017-06-20 09:00:00', None],
-        ['2017-06-21 09:00:00', u'Don&#39;t forget, you have 2 weeks left to upgrade to a Verified Certificate.'],
-        ['2017-07-04 10:00:00', u'Don&#39;t forget, you have 1 day left to upgrade to a Verified Certificate.'],
-        ['2017-07-05 08:00:00', u'Don&#39;t forget, you have 1 hour left to upgrade to a Verified Certificate.'],
-        ['2017-07-05 08:55:00', u'Don&#39;t forget, you have 5 minutes left to upgrade to a Verified Certificate.'],
+        ['2017-06-21 09:00:00', 'Don&#39;t forget, you have 2 weeks left to upgrade to a Verified Certificate.'],
+        ['2017-07-04 10:00:00', 'Don&#39;t forget, you have 1 day left to upgrade to a Verified Certificate.'],
+        ['2017-07-05 08:00:00', 'Don&#39;t forget, you have 1 hour left to upgrade to a Verified Certificate.'],
+        ['2017-07-05 08:55:00', 'Don&#39;t forget, you have 5 minutes left to upgrade to a Verified Certificate.'],
         ['2017-07-05 09:00:00', None],
         ['2017-08-05 09:00:00', None],
     )
@@ -857,9 +862,9 @@ class TestDateAlerts(SharedModuleStoreTestCase):
 
     @ddt.data(
         ['2017-07-15 08:00:00', None],
-        ['2017-07-15 09:00:00', u'If you have earned a certificate, you will be able to access it 1 week from now.'],
-        ['2017-07-21 09:00:00', u'If you have earned a certificate, you will be able to access it 1 day from now.'],
-        ['2017-07-22 08:00:00', u'If you have earned a certificate, you will be able to access it 1 hour from now.'],
+        ['2017-07-15 09:00:00', 'If you have earned a certificate, you will be able to access it 1 week from now.'],
+        ['2017-07-21 09:00:00', 'If you have earned a certificate, you will be able to access it 1 day from now.'],
+        ['2017-07-22 08:00:00', 'If you have earned a certificate, you will be able to access it 1 hour from now.'],
         ['2017-07-22 09:00:00', None],
         ['2017-07-23 09:00:00', None],
     )
@@ -885,7 +890,7 @@ class TestScheduleOverrides(SharedModuleStoreTestCase):
     """ Tests for Schedule Overrides """
 
     def setUp(self):
-        super(TestScheduleOverrides, self).setUp()  # lint-amnesty, pylint: disable=super-with-arguments
+        super().setUp()
 
         patcher = patch('openedx.core.djangoapps.schedules.signals.get_current_site')
         mock_get_current_site = patcher.start()
@@ -912,7 +917,7 @@ class TestScheduleOverrides(SharedModuleStoreTestCase):
         assert upgrade_date_summary.description ==\
                "Don't miss the opportunity to highlight your new knowledge and skills by earning a verified" \
                " certificate."
-        assert upgrade_date_summary.relative_datestring == u'by {date}'
+        assert upgrade_date_summary.relative_datestring == 'by {date}'
 
     @override_waffle_flag(CREATE_SCHEDULE_WAFFLE_FLAG, True)
     def test_date_with_self_paced_with_enrollment_after_course_start(self):
@@ -1131,10 +1136,10 @@ def enable_course_certificates(course):
     Enable course certificate configuration.
     """
     course.certificates = {
-        u'certificates': [{
-            u'course_title': u'Test',
-            u'name': u'',
-            u'is_active': True,
+        'certificates': [{
+            'course_title': 'Test',
+            'name': '',
+            'is_active': True,
         }]
     }
     course.save()
