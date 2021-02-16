@@ -13,11 +13,13 @@ from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse, reverse_lazy
+from opaque_keys.edx.keys import CourseKey
 from rest_framework.utils.encoders import JSONEncoder
 
 from common.djangoapps.course_modes.models import CourseMode
+from common.djangoapps.course_modes.tests.factories import CourseModeFactory
 from lms.djangoapps.verify_student.models import VerificationDeadline
-from common.djangoapps.student.tests.factories import UserFactory
+from common.djangoapps.student.tests.factories import CourseEnrollmentFactory, UserFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory
 
@@ -189,6 +191,54 @@ class CourseRetrieveUpdateViewTests(CourseApiViewTestMixin, ModuleStoreTestCase)
 
         # Verify the verification deadline is updated
         self.assertEqual(VerificationDeadline.deadline_for_course(self.course.id), verification_deadline)
+
+    def test_update_min_price(self):
+        """
+        Verify CourseMode objects can have min_price updated to a min_price type float via PUT on the API.
+        """
+        # update the price in the existing course mode
+        new_min_price = 50.00
+        course_mode = CourseMode(
+            course_id=self.course_mode.course_id,
+            mode_slug=u'verified',
+            min_price=new_min_price,
+        )
+        course_mode.save()
+        updated_data = self._serialize_course(self.course, [course_mode])
+
+        response = self.client.put(
+            self.path,
+            data=json.dumps(updated_data),
+            content_type=JSON_CONTENT_TYPE
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response_updated = json.loads(response.content.decode('utf-8'))['modes']
+        self.assertEqual(response_updated[0]['price'], int(new_min_price))
+        self.assertEqual(type(response_updated[0]['price']), int)
+
+        expected_mode_dict = self._serialize_course_mode(course_mode)
+        self.assertEqual(expected_mode_dict['price'], int(new_min_price))
+        self.assertEqual(type(expected_mode_dict['price']), int) #fails
+
+    def test_update_min_price_dup(self):
+        # JK: WIP testing duplicate of test_update_min_price()
+        existing_mode_verified = self.course_mode
+        new_min_price = 50.00
+        existing_mode_verified.min_price = new_min_price
+
+        data = json.dumps(self._serialize_course(self.course, [existing_mode_verified]))
+        response = self.client.put(self.path, data, content_type=JSON_CONTENT_TYPE)
+
+        self.assertEqual(response.status_code, 200)
+
+        response_mode_verified = json.loads(response.content.decode('utf-8'))['modes']
+        self.assertEqual(response_mode_verified[0]['price'], int(new_min_price))
+        self.assertEqual(type(response_mode_verified[0]['price']), int)
+
+        expected_mode_dict = self._serialize_course_mode(existing_mode_verified)
+        self.assertEqual(expected_mode_dict['price'], int(new_min_price))
+        self.assertEqual(type(expected_mode_dict['price']), int) #fails
 
     def test_update_invalid_dates(self):
         """

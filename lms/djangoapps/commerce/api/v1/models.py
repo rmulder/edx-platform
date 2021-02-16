@@ -135,6 +135,7 @@ class Course(object):
         course_modes = CourseMode.objects.filter(course_id=course_id)
 
         if course_modes:
+            # breakpoint()
             verification_deadline = VerificationDeadline.deadline_for_course(course_id)
             return cls(course_id, list(course_modes), verification_deadline=verification_deadline)
 
