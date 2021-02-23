@@ -13,10 +13,15 @@
 #   limitations under the License.
 LOOKUP = {}
 
-from .paths import add_lookup, clear_lookups, lookup_template, save_lookups  # lint-amnesty, pylint: disable=wrong-import-position
+from .paths import (  # lint-amnesty, pylint: disable=wrong-import-position
+    add_lookup,
+    clear_lookups,
+    lookup_template,
+    save_lookups
+)
 
 
-class Engines(object):
+class Engines:
     """
     Aliases for the available template engines.
     Note that the preview engine is only configured for cms.
