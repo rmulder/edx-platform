@@ -60,7 +60,7 @@ class SearchIndexingError(Exception):
         self.error_list = error_list
 
 
-class SearchIndexerBase(metaclass=ABCMeta, metaclass=ABCMeta):
+class SearchIndexerBase(metaclass=ABCMeta):
     """
     Base class to perform indexing for courseware or library search from different modulestores
     """
