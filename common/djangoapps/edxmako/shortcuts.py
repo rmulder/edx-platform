@@ -145,11 +145,8 @@ def marketing_link_context_processor(request):
     )
 
     return {  # lint-amnesty, pylint: disable=consider-using-dict-comprehension
-            "MKTG_URL_" + k: marketing_link(k)
-            for k in (
-                settings.MKTG_URL_LINK_MAP.keys() |
-                marketing_urls.keys()
-            )
+        "MKTG_URL_" + k: marketing_link(k)
+        for k in (settings.MKTG_URL_LINK_MAP.keys() | marketing_urls.keys())
     }
 
 
